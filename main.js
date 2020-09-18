@@ -108,6 +108,110 @@ methods.set('/posts.post', async ({response, searchParams, db}) => {
     sendJSON(response, post);
 });
 
+methods.set('/posts.like', async ({response, searchParams, db}) => {
+    if (!searchParams.has('id')) {
+      sendResponse(response, {status: statusBadRequest});
+      return;
+    }
+  
+    const id = Number(searchParams.get('id'));
+    if (Number.isNaN(id)) {
+      sendResponse(response, {status: statusBadRequest});
+      return;
+    }
+  
+    const table = await db.getTable('posts');
+    const check = await table.select(['likes'])
+      .where('id = :id AND removed = :removed')
+      .bind('id', id)
+      .bind('removed', false)
+      .execute();
+    const checkedData = check.fetchAll();
+  
+    if (checkedData.length === 0) {
+      sendResponse(response, {status: statusNotFound});
+      return;
+    }
+    const likesColumn = check.getColumns();
+    const likes = checkedData.map(map(likesColumn));
+    const currentlikes = likes[0].likes;
+    
+    const action = await table.update()
+      .set('likes', currentlikes + 1)
+      .where('id = :id')
+      .bind('id', id)
+      .execute();
+  
+    const updated = action.getAffectedItemsCount();
+    
+    if (updated === 0) {
+      sendResponse(response, {status: statusNotFound});
+      return;
+    }
+  
+    const result = await table.select(['id', 'content', 'likes', 'removed', 'created'])
+      .where('id = :id')
+      .bind('id', id)
+      .execute();
+    const data = result.fetchAll();
+    const columns = result.getColumns();
+    const post = data.map(map(columns));
+  
+    sendJSON(response, post[0]);
+  });
+  
+  methods.set('/posts.dislike', async ({response, searchParams, db}) => {
+    if (!searchParams.has('id')) {
+      sendResponse(response, {status: statusBadRequest});
+      return;
+    }
+  
+    const id = Number(searchParams.get('id'));
+    if (Number.isNaN(id)) {
+      sendResponse(response, {status: statusBadRequest});
+      return;
+    }
+  
+    const table = await db.getTable('posts');
+    const check = await table.select(['likes'])
+      .where('id = :id AND removed = :removed')
+      .bind('id', id)
+      .bind('removed', false)
+      .execute();
+    const checkedData = check.fetchAll();
+  
+    if (checkedData.length === 0) {
+      sendResponse(response, {status: statusNotFound});
+      return;
+    }
+    const likesColumn = check.getColumns();
+    const likes = checkedData.map(map(likesColumn));
+    const currentlikes = likes[0].likes;
+    
+    const action = await table.update()
+      .set('likes', currentlikes - 1)
+      .where('id = :id')
+      .bind('id', id)
+      .execute();
+  
+    const updated = action.getAffectedItemsCount();
+    
+    if (updated === 0) {
+      sendResponse(response, {status: statusNotFound});
+      return;
+    }
+  
+    const result = await table.select(['id', 'content', 'likes', 'removed', 'created'])
+      .where('id = :id')
+      .bind('id', id)
+      .execute();
+    const data = result.fetchAll();
+    const columns = result.getColumns();
+    const post = data.map(map(columns));
+  
+    sendJSON(response, post[0]);
+  });
+
 const server = http.createServer(async (request, response) => {
     const {pathname, searchParams} = new URL(request.url, `http://${request.headers.host}`);
 
